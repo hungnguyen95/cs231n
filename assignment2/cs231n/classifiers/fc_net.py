@@ -258,17 +258,17 @@ class FullyConnectedNet(object):
         reg_term = 0
         for layer in range(self.num_layers):
           if layer == self.num_layers - 1:
-            scores, cache = affine_forward(scores, self.params['W%d'%(layer+1)], self.params['b%d'%(layer+1)])
-            fc_caches.append(cache)
+            scores, fc_cache = affine_forward(scores, self.params['W%d'%(layer+1)], self.params['b%d'%(layer+1)])
+            fc_caches.append(fc_cache)
           else:
-            scores, cache = affine_forward(scores, self.params['W%d'%(layer+1)], self.params['b%d'%(layer+1)])
-            fc_caches.append(cache)
+            scores, fc_cache = affine_forward(scores, self.params['W%d'%(layer+1)], self.params['b%d'%(layer+1)])
+            fc_caches.append(fc_cache)
             if self.normalization == 'batchnorm':
               gamma, beta = self.params['gamma%d'%(layer+1)], self.params['beta%d'%(layer+1)]
               scores, batchnorm_cache = batchnorm_forward(scores, gamma, beta, self.bn_params[layer])
               batchnorm_caches.append(batchnorm_cache)
-            socres, cache = relu_forward(scores)
-            relu_caches.append(cache)
+            scores, relu_cache = relu_forward(scores)
+            relu_caches.append(relu_cache)
           reg_term += np.sum(self.params['W%d'%(layer+1)] ** 2)
         reg_term *= 0.5 * self.reg
         ############################################################################
@@ -303,10 +303,9 @@ class FullyConnectedNet(object):
         while layer >= 0:
           dout = relu_backward(dout, relu_caches[layer])
           if self.normalization == 'batchnorm':
-            dout, grads['gamma%d'%(layer+1)], grads['beta%d'%(layer+1)] = batchnorm_backward_alt(dout, batchnorm_caches[layer]) 
-          dx, grads['W%d'%(layer+1)], grads['b%d'%(layer+1)] = affine_backward(dout, fc_caches[layer])
+            dout, grads['gamma%d'%(layer+1)], grads['beta%d'%(layer+1)] = batchnorm_backward(dout, batchnorm_caches[layer]) 
+          dout, grads['W%d'%(layer+1)], grads['b%d'%(layer+1)] = affine_backward(dout, fc_caches[layer])
           grads['W%d'%(layer+1)] += self.reg * self.params['W%d'%(layer+1)]
-          dout = np.dot(dout, self.params['W%d' % (layer+1)].T)
           layer -= 1
  
         ############################################################################
