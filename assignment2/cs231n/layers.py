@@ -179,7 +179,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # might prove to be helpful.                                          #
         #######################################################################
         sample_mean = np.mean(x, axis=0)
-        sample_var = np.sum((x-sample_mean)**2, axis=0)
+        sample_var = 1/N * np.sum((x-sample_mean)**2, axis=0)
 
         x_ = (x-sample_mean) / np.sqrt(sample_var + eps)
 
@@ -323,14 +323,19 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
-    pass
+    N, D = x.shape
+    mean = np.mean(x, axis=1).reshape(N,-1)
+    var = 1/D * np.sum((x - mean)**2, axis = 1).reshape(N, -1)
+    x_ = (x-mean) / np.sqrt(var + eps)
+    out = gamma * x_ + beta
+    cache = (mean, var, x_, gamma, eps)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
     return out, cache
 
 
-def layernorm_backward(dout, cache):
+def layernorm_backward(grad_out, cache):
     """
     Backward pass for layer normalization.
 
@@ -339,14 +344,14 @@ def layernorm_backward(dout, cache):
 
     Inputs:
     - dout: Upstream derivatives, of shape (N, D)
-    - cache: Variable of intermediates from layernorm_forward.
+    - cache: Variable of intermediates from _forward.
 
     Returns a tuple of:
     - dx: Gradient with respect to inputs x, of shape (N, D)
     - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
     """
-    dx, dgamma, dbeta = None, None, None
+    
     ###########################################################################
     # TODO: Implement the backward pass for layer norm.                       #
     #                                                                         #
@@ -354,11 +359,20 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
-    pass
+    sample_mean, sample_var, x_normed, gamma, eps = cache
+    grad_beta = grad_out.sum(axis=0)
+    grad_gamma = (x_normed * grad_out).sum(axis=0)
+
+    grad_x_normed = grad_out * gamma
+    std = np.sqrt(sample_var + eps)
+    grad_mu = - grad_x_normed.sum(axis=1, keepdims=True) / std
+    grad_var = - (grad_x_normed * x_normed).sum(axis=1, keepdims=True) / (sample_var + eps) / 2
+    d = grad_out.shape[1]
+    grad_x = grad_x_normed / std + grad_mu / d + x_normed * std * grad_var * 2 / d
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    return dx, dgamma, dbeta
+    return grad_x, grad_gamma, grad_beta
 
 
 def dropout_forward(x, dropout_param):
@@ -399,7 +413,9 @@ def dropout_forward(x, dropout_param):
         # TODO: Implement training phase forward pass for inverted dropout.   #
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
-        pass
+        mask = np.random.rand(*x.shape) < p
+        mask = mask / p
+        out = x * mask        
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -407,7 +423,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # TODO: Implement the test phase forward pass for inverted dropout.   #
         #######################################################################
-        pass
+        out = x 
         #######################################################################
         #                            END OF YOUR CODE                         #
         #######################################################################
@@ -434,7 +450,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # TODO: Implement training phase backward pass for inverted dropout   #
         #######################################################################
-        pass
+        dx = dout * mask
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
@@ -476,7 +492,19 @@ def conv_forward_naive(x, w, b, conv_param):
     # TODO: Implement the convolutional forward pass.                         #
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
-    pass
+    pad = int(conv_param['pad'])
+    stride = int(conv_param['stride'])
+    x_pad = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant', constant_values=0)
+    F, C, HH, WW = w.shape
+    N, _, H, W = x.shape
+    H_ = ((H + 2*pad - HH) // stride) + 1
+    W_ = ((W + 2*pad - WW) // stride) + 1
+    out = np.zeros((N, F, H_, W_))
+    for i in range(N):
+      for j in range(F):
+        for k in range(H_):
+          for l in range(W_):
+            out[i, j, k, l] = np.sum(x_pad[i, :, k*stride:k*stride + HH, l*stride:l*stride + WW] * w[j, :, : , :]) + b[j]
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -501,7 +529,8 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    x, w, b, conv_param = cache
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
