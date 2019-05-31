@@ -102,5 +102,11 @@ def conv_relu_pool_backward(dout, cache):
     conv_cache, relu_cache, pool_cache = cache
     ds = max_pool_backward_fast(dout, pool_cache)
     da = relu_backward(ds, relu_cache)
-    dx, dw, db = conv_backward_fast(da, conv_cache)
+    ## Replace with fast conv or naive conv
+
+    #Fast CONV
+    #dx, dw, db = conv_backward_fast(da, conv_cache)
+
+    #Naive CONV
+    dx, dw, db = conv_backward_naive(da, conv_cache[0:4])
     return dx, dw, db
