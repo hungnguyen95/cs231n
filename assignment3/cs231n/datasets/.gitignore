@@ -1,0 +1,4 @@
+coco_captioning/*
+MNIST_data/*
+*.npz
+tiny-100-A-pretrained/*
